@@ -1,5 +1,5 @@
 {
-    "name": "packedge/license",
+    "name": "packedge-sdk/license",
     "description": "License + auto-update for WordPress plugins",
     "type": "library",
     "license": "MIT",
