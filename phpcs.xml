@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<ruleset name="PackEdge">
+    <file>src</file>
+    <arg name="colors"/>
+    <arg value="sp"/>
+    <rule ref="PSR12">
+        <exclude name="PSR1.Methods.CamelCapsMethodName"/>
+    </rule>
+</ruleset>

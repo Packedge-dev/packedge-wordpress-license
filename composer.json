@@ -1,0 +1,22 @@
+{
+    "name": "packedge/license",
+    "description": "License + auto-update for WordPress plugins",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": ">=7.4"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "PackEdge\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "PackEdge\\Tests\\": "tests/"
+        }
+    }
+}
