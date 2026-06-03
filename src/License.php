@@ -167,9 +167,15 @@ class License
                 }
                 $this->license = $data;
                 $this->loaded = true;
-                return new \WP_REST_Response([
-                    'success' => update_option('license_' . $this->public_key, wp_json_encode($data))
-                ]);
+                $saved = update_option('license_' . $this->public_key, wp_json_encode($data));
+
+                // License state changed (activated, deactivated, disabled or
+                // invalidated) — drop the cached update list so the next Plugins/
+                // Updates page load re-checks entitlement instead of showing a
+                // stale (now undownloadable) update.
+                delete_site_transient('update_plugins');
+
+                return new \WP_REST_Response(['success' => $saved]);
             },
             'permission_callback' => fn() => current_user_can('manage_options'),
         ]);

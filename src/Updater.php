@@ -77,15 +77,31 @@ class Updater
         }
 
         $current = $transient->checked[$this->basename];
-        $key = version_compare($update['version'], $current, '>') ? 'response' : 'no_update';
 
-        $transient->{$key}[$this->basename] = (object) [
+        // Always surface a newer version as an available update so even
+        // unlicensed/invalid/deactivated sites see it (a nudge to activate). The
+        // downloadable package is only included by the API for a valid, licensed,
+        // active site; without it WP shows the update but the download is refused.
+        $is_newer = version_compare($update['version'], $current, '>');
+        $key      = $is_newer ? 'response' : 'no_update';
+
+        $entry = [
             'slug'        => $this->slug,
             'plugin'      => $this->basename,
-            'new_version' => $update['version'],
-            'package'     => $update['download_url'] ?? '',
+            'new_version' => $is_newer ? $update['version'] : $current,
+            'package'     => $update['package'] ?? '',
             'url'         => $update['url'] ?? '',
         ];
+
+        // Icons/banners power the plugin logo on the Updates screen.
+        if (! empty($update['icons'])) {
+            $entry['icons'] = $update['icons'];
+        }
+        if (! empty($update['banners'])) {
+            $entry['banners'] = $update['banners'];
+        }
+
+        $transient->{$key}[$this->basename] = (object) $entry;
 
         return $transient;
     }
@@ -109,13 +125,26 @@ class Updater
             return $result;
         }
 
-        return (object) [
+        $result = [
             'name'          => $info['name'] ?? $this->slug,
             'slug'          => $this->slug,
             'version'       => $info['version'],
-            'download_link' => $info['download_url'] ?? '',
-            'sections'      => ['changelog' => $info['changelog'] ?? ''],
+            'download_link' => $info['package'] ?? '',
+            'sections'      => $info['sections'] ?? ['changelog' => $info['changelog'] ?? ''],
+            'requires'      => $info['requires'] ?? '',
+            'tested'        => $info['tested'] ?? '',
+            'requires_php'  => $info['requires_php'] ?? '',
         ];
+
+        // Banner header + icon shown in the "View details" modal.
+        if (! empty($info['banners'])) {
+            $result['banners'] = $info['banners'];
+        }
+        if (! empty($info['icons'])) {
+            $result['icons'] = $info['icons'];
+        }
+
+        return (object) $result;
     }
 
     /**
@@ -144,6 +173,20 @@ class Updater
     }
 
     /**
+     * Resolve the PackEdge API base URL. Defaults to production; override for
+     * staging/local via the PACKEDGE_API_BASE constant or the
+     * `packedge_api_base` filter.
+     *
+     * @return string
+     */
+    private function api_base(): string
+    {
+        $base = \defined('PACKEDGE_API_BASE') ? (string) \constant('PACKEDGE_API_BASE') : 'https://api.packedge.dev';
+
+        return \rtrim(\apply_filters('packedge_api_base', $base), '/');
+    }
+
+    /**
      * Fetch update info (cached).
      *
      * @return array|null
@@ -154,17 +197,20 @@ class Updater
             return $this->update_cache ?: null;
         }
 
+        // No license key is fine: the update-check still returns the new version
+        // (so WP shows "update available"); the API just omits the package, so
+        // the download is gated to valid, licensed, active sites.
+        $params = [
+            'slug' => $this->slug,
+            'site' => site_url(),
+        ];
         $key = $this->license->get_key();
-        if (! $key) {
-            $this->update_cache = [];
-            return null;
+        if ($key) {
+            $params['license_key'] = $key;
         }
 
         $response = wp_remote_get(
-            'https://api.packedge.dev/public/v1/update/' . $this->slug . '?' . http_build_query([
-                'license_key' => $key,
-                'site'        => site_url(),
-            ]),
+            $this->api_base() . '/public/v1/wp/update-check?' . http_build_query($params),
             ['timeout' => 10, 'headers' => ['X-Public-Key' => $this->license->get_public_key()]]
         );
 
