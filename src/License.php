@@ -55,9 +55,11 @@ class License
         $this->plugin_file = $plugin_file;
         $this->plugin_slug = basename(dirname($plugin_file));
 
-        // Only register in admin.
+        // REST route must register on REST requests too (is_admin() is false there).
+        add_action('rest_api_init', [$this, 'register_route']);
+
+        // Localized admin data is only needed in wp-admin.
         if (is_admin()) {
-            add_action('rest_api_init', [$this, 'register_route']);
             add_action('admin_enqueue_scripts', [$this, 'localize']);
         }
     }
