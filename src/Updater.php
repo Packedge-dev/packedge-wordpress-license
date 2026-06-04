@@ -158,14 +158,20 @@ class Updater
      */
     public function fix_folder(string $source, string $remote, $upgrader, array $extras): string
     {
-        if (($extras['plugin'] ?? '') !== $this->basename) {
+        // During an auto-update WP tells us which plugin via $extras['plugin'].
+        // During a manual "Upload Plugin" install it doesn't, so also claim the
+        // package when the extracted folder contains our main plugin file — that
+        // way a folderless/oddly-named zip still installs into the slug folder.
+        $is_ours = (($extras['plugin'] ?? '') === $this->basename)
+            || \file_exists(\trailingslashit($source) . \basename($this->plugin_file));
+        if (! $is_ours) {
             return $source;
         }
 
         global $wp_filesystem;
         $dest = trailingslashit($remote) . $this->slug;
 
-        if ($source !== $dest && $wp_filesystem->move($source, $dest)) {
+        if (untrailingslashit($source) !== untrailingslashit($dest) && $wp_filesystem->move($source, $dest)) {
             return $dest;
         }
 
