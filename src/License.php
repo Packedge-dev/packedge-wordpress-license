@@ -49,11 +49,28 @@ class License
     /**
      * Constructor.
      */
+    /** @var bool Whether the license-management surface is registered. */
+    private bool $managed = false;
+
     private function __construct(string $public_key, string $plugin_file)
     {
         $this->public_key  = $public_key;
         $this->plugin_file = $plugin_file;
         $this->plugin_slug = basename(dirname($plugin_file));
+    }
+
+    /**
+     * Register the license-management surface: the save/get REST route and the
+     * admin-localized data the license UI reads. Paid plugins call this (via
+     * Client::useLicense()); a free plugin that only wants auto-updates does
+     * not, so no license endpoint or UI is exposed.
+     */
+    public function manage(): void
+    {
+        if ($this->managed) {
+            return;
+        }
+        $this->managed = true;
 
         // REST route must register on REST requests too (is_admin() is false there).
         add_action('rest_api_init', [$this, 'register_route']);
